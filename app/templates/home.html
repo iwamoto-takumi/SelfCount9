@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block content %}
+    <div style="display: flex; justify-content: center;">
+        <form action="{{ url_for('auth.login') }}" method="get">
+            <button class="waves-effect waves-light btn mobile-font" type="submit" style="display: inline-flex; align-items: center;">
+                <i class="material-icons" style="margin-right: 5px;">account_circle</i>
+                <span>Googleアカウントでログイン</span>
+            </button>
+        </form>
+    </div>
+{% endblock %}

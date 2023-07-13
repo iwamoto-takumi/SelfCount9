@@ -1,0 +1,302 @@
+{% extends "layout.html" %}
+{% block content %}
+    <style>
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .button-group button {
+            margin-right: 10px;
+        }
+        .button-group button:last-child {
+            margin-right: 0;
+        }
+        .success-message {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4caf50;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 9999;
+        }
+        .success-message.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .success-message.hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+        @media (max-width: 600px) {
+            .button-group {
+                margin-bottom: 10px;
+            }
+            .button-group button {
+                margin-right: 5px;
+            }
+            .mdl-textfield {
+                width: auto;
+            }
+            .mdl-data-table {
+                width: auto;
+            }
+        }
+    </style>
+    <div id="success-message" class="success-message">
+        <span class="message-text"></span>
+    </div>
+    <h1 style="text-align: center;">スコア入力</h1>
+    <form action="/submit-score" method="post" style="display: flex; flex-direction: column; align-items: center;">
+        {{ form.hidden_tag() }}
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <div class="mdl-textfield mdl-js-textfield" style="margin-right: 10px;">
+                {{ form.round.label }}
+                {{ form.round(class="mdl-textfield__input", readonly=True) }}
+            </div>
+            <div class="button-group">
+                <button id="previous-btn" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="previousGame()">
+                    ＜
+                </button>
+                <button id="submit-btn" type="submit" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent">
+                    送信
+                </button>
+                <button id="next-btn" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="nextGame()" style="display: none;">
+                    ＞
+                </button>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <div class="mdl-textfield mdl-js-textfield" style="margin-right: 10px;">
+                {{ form.fouls.label }}
+                {{ form.fouls(class="mdl-textfield__input", readonly=True) }}
+            </div>
+            <div class="button-group">
+                <button id="previous-btn" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="incrementFouls(-1)">
+                    ー
+                </button>
+                <button id="next-btn" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="incrementFouls(1)">
+                    ＋
+                </button>
+            </div>
+        </div>
+    </form>
+    <div style="overflow-x: auto;">
+        <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="margin-top: 20px; width: 100%;">
+            <thead>
+                <tr>
+                    <th class="mdl-data-table__cell--non-numeric">Round</th>
+                    {% for round in rounds %}
+                        <th class="mdl-data-table__cell--non-numeric">{{ round }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="mdl-data-table__cell--non-numeric">Score</td>
+                    {% set cumulativeTotal = 0 %}
+                    {% for score in scores %}
+                        {% if score.submitted %}
+                            <td class="mdl-data-table__cell--non-numeric">{{ scores.point }}</td>
+                            {% set cumulativeTotal = cumulativeTotal + score.point %}
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="mdl-data-table__cell--non-numeric">Total</td>
+                    {% set cumulativeTotal = 0 %}
+                    {% for score in scores %}
+                        {% if score.submitted %}
+                            {% set cumulativeTotal = cumulativeTotal + score.point %}
+                            <td class="mdl-data-table__cell--non-numeric">{{ cumulativeTotal }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="game_number" style="display: none;">
+        {{ game_number }}
+    </div>
+
+    <script>
+        let currentGame = 1;
+        let fouls = 0;
+        let scores = [];
+
+        function incrementFouls(amount) {
+            var foulsField = document.querySelector('input[name="fouls"]');
+            var currentFouls = Number(foulsField.value);
+            if(currentFouls + amount < 0 || currentFouls + amount > 10) {
+                return;
+            }
+            fouls = currentFouls + amount;
+            foulsField.value = fouls;
+        }
+
+        function updateScoreTable() {
+            const scoreTableHead = document.querySelector('.mdl-data-table thead tr');
+            const scoreTableBody = document.querySelector('.mdl-data-table tbody');
+            scoreTableHead.innerHTML = '';
+            scoreTableBody.innerHTML = '';
+
+            const scoreRow = document.createElement('tr');
+            const totalRow = document.createElement('tr');
+
+            const roundLabelCell = document.createElement('th');
+            roundLabelCell.classList.add('mdl-data-table__cell--non-numeric');
+            roundLabelCell.textContent = 'Round';
+            scoreTableHead.appendChild(roundLabelCell);
+
+            if(scores.length === 0) {
+                const scoreLabelCell = document.createElement('td');
+                scoreLabelCell.classList.add('mdl-data-table__cell--non-numeric');
+                scoreLabelCell.textContent = 'Score';
+                scoreRow.appendChild(scoreLabelCell);
+                scoreTableBody.appendChild(scoreRow);
+                const totalLabelCell = document.createElement('td');
+                totalLabelCell.classList.add('mdl-data-table__cell--non-numeric');
+                totalLabelCell.textContent = 'Total';
+                totalRow.appendChild(totalLabelCell);
+                scoreTableBody.appendChild(totalRow);
+                return;
+            }
+
+            scores.forEach((score, index) => {
+                const roundCell = document.createElement('th');
+                roundCell.classList.add('mdl-data-table__cell--non-numeric');
+                roundCell.textContent = index + 1;
+                scoreTableHead.appendChild(roundCell);
+
+                const scoreLabelCell = document.createElement('td');
+                scoreLabelCell.classList.add('mdl-data-table__cell--non-numeric');
+                if(scoreRow.children.length === 0) {
+                    scoreLabelCell.textContent = 'Score';
+                    scoreRow.appendChild(scoreLabelCell);
+                }
+
+                const scoreCell = document.createElement('td');
+                scoreCell.classList.add('mdl-data-table__cell--non-numeric');
+                scoreCell.textContent = score;
+                scoreRow.appendChild(scoreCell);
+
+                const cumulativeTotal = scores.slice(0, index + 1).reduce((acc, val) => acc + val);
+                const totalLabelCell = document.createElement('td');
+                totalLabelCell.classList.add('mdl-data-table__cell--non-numeric');
+                if(totalRow.children.length === 0) {
+                    totalLabelCell.textContent = 'Total';
+                    totalRow.appendChild(totalLabelCell);
+                }
+
+                const totalCell = document.createElement('td');
+                totalCell.classList.add('mdl-data-table__cell--non-numeric');
+                totalCell.textContent = cumulativeTotal;
+                totalRow.appendChild(totalCell);
+            });
+
+            scoreTableBody.appendChild(scoreRow);
+            scoreTableBody.appendChild(totalRow);
+        }
+
+        function nextGame() {
+            if(currentGame > 10) {
+                return;
+            }
+
+            scores.push(10 - fouls);
+            fouls = 0;
+            document.querySelector('input[name="fouls"]').value = fouls;
+            updateScoreTable();
+
+            currentGame++;
+
+            updateRoundValue();
+            checkGameNumber();
+        }
+
+        function previousGame() {
+            if(currentGame <= 1) {
+                return;
+            }
+
+            scores.pop();
+            fouls = 10 - (scores[scores.length - 1] || 10);
+            document.querySelector('input[name="fouls"]').value = fouls;
+            updateScoreTable();
+
+            currentGame--;
+
+            updateRoundValue();
+            checkGameNumber();
+        }
+
+        function updateRoundValue() {
+            round = document.getElementById('round');
+            if(currentGame == 11) {
+                round.value = 10;
+            } else {
+                round.value = currentGame;
+            }
+        }
+
+        function checkGameNumber() {
+            var submitBtn = document.getElementById('submit-btn');
+            var nextBtn = document.getElementById('next-btn');
+
+            if(currentGame == 11) {
+                submitBtn.style.display = 'block';
+                nextBtn.style.display = 'none';
+            } else if(currentGame == 1) {
+                submitBtn.style.display = 'none';
+                nextBtn.style.display = 'block';
+            } else {
+                submitBtn.style.display = 'none';
+                nextBtn.style.display = 'block';
+            }
+        }
+
+        document.querySelector('form[action="/submit-score"]').addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            game_number = document.getElementById('game_number').textContent.trim();
+            fetch('/submit-score', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({scores, game_number}),
+            })
+            .then(response => response.json())
+            .then(data => {
+                showSuccessMessage('スコアの登録を行いました');
+                console.log('Success:', data);
+                var submitBtn = document.getElementById('submit-btn');
+                submitBtn.style.display = 'none';
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+
+        function showSuccessMessage(message) {
+            const successMessage = document.getElementById('success-message');
+            const messageText = successMessage.querySelector('.message-text');
+
+            messageText.textContent = message;
+            successMessage.classList.add('show');
+
+            setTimeout(() => {
+                successMessage.classList.add('hide');
+                messageText.textContent = '';
+            }, 3000);
+        }
+
+        window.onload = checkGameNumber;
+        document.querySelector('input[name="round"]').value = currentGame;
+    </script>
+{% endblock %}

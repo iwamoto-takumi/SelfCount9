@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block content %}
+    <h1 style="text-align: center;">あなたの成績</h1>
+    <div class="row" style="display: flex;">
+            <div style="overflow-x: auto; margin-left: auto; margin-right: auto;">
+                <table class="responsive-table highlight centered mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width: 80%">
+                    <thead>
+                        <tr>
+                            <th>日時</th>
+                            <th>合計</th>
+                            {% for round in range(1, 11) %}
+                                <th>{{ round }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for game_number, game_scores in scores.items() %}
+                        <tr>
+                            <td>{{ timestamps[game_number] }}</td>
+                            <td>{{ totals[game_number] }}</td>
+                            {% if game_scores.items()|length > 0 %}
+                                {% for round, score in game_scores.items() %}
+                                    <td>{{ score }}</td>
+                                {% endfor %}
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+    </div>
+{% endblock %}

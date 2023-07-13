@@ -1,0 +1,6 @@
+migrations
+instance
+.venv
+__pycache__
+
+.env
